@@ -26,6 +26,13 @@ RUN npx prisma generate
 RUN npx prisma migrate deploy
 
 RUN \
+  if [ -f yarn.lock ]; then yarn run prepare; \
+  elif [ -f package-lock.json ]; then npm run prepare; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run prepare; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
+
+RUN \
   if [ -f yarn.lock ]; then yarn run build; \
   elif [ -f package-lock.json ]; then npm run build; \
   elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
