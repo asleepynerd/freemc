@@ -39,8 +39,6 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
-COPY --from=builder /app/ /
-
 FROM base AS runner
 WORKDIR /app
 
@@ -50,7 +48,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
+COPY --from=builder /app/ ./
 
 USER nextjs
 
