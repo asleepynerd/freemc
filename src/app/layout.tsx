@@ -1,18 +1,22 @@
 import "@mantine/core/styles.css";
-import { ColorSchemeScript, MantineProvider } from "@mantine/core";
-import type { Metadata } from "next";
-import AnimatedBackground from "@/components/AnimatedBackground";
-import Sidebar from "@/components/Sidebar";
-import Topbar from "@/components/Topbar";
-import Providers from "@/components/Providers";
+import { ColorSchemeScript, MantineProvider, AppShell } from "@mantine/core";
+import Navigation from "@/components/Navigation";
+import { ReactNode } from "react";
+import { SessionProvider } from "next-auth/react";
 
+function AnimatedBackground() {
+  return (
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 0,
+      pointerEvents: "none",
+      background: "radial-gradient(ellipse at 50% 30%, #23243a 60%, #181926 100%)"
+    }} />
+  );
+}
 
-export const metadata: Metadata = {
-  title: "freehost",
-  description: "a place to host your game servers!",
-};
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -20,31 +24,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
       <body style={{
         minHeight: "100vh",
-        background: "radial-gradient(ellipse at 50% 30%, #23243a 60%, #181926 100%)",
+        background: "#181926",
         color: "#e0e0e0",
         fontFamily: "Inter, sans-serif",
         margin: 0,
         padding: 0,
         position: "relative",
+        overflowX: "hidden",
       }}>
-        <MantineProvider defaultColorScheme="dark">
-          <Providers>
+        <SessionProvider>
+          <MantineProvider defaultColorScheme="dark" forceColorScheme="dark">
             <AnimatedBackground />
-            <div style={{ display: "flex", minHeight: "100vh" }}>
-              <Sidebar />
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-                <Topbar />
-                <main style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "2rem 0 0 0" }}>
-                  {children}
-                </main>
-              </div>
-            </div>
-          </Providers>
-        </MantineProvider>
+            <AppShell header={{ height: 56 }} padding="md">
+              <Navigation />
+              {children}
+            </AppShell>
+          </MantineProvider>
+        </SessionProvider>
       </body>
     </html>
   );
-}
+} 

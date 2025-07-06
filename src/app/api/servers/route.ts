@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { app, client } from '@/lib/pterodactyl';
+import { app, client, ipMappings } from '@/lib/pterodactyl';
 
 const serverTypeDetails: { [key: number]: { name: string; ram: number; cores: number; disk: number; egg: number; image: string } } = {
     2: { name: 'Vanilla', ram: 4096, cores: 2, disk: 1024, egg: 2, image: 'ghcr.io/pterodactyl/yolks:java_21' },
@@ -9,7 +9,7 @@ const serverTypeDetails: { [key: number]: { name: string; ram: number; cores: nu
     5: { name: 'Paper', ram: 4096, cores: 4, disk: 2048, egg: 5, image: 'ghcr.io/pterodactyl/yolks:java_21' },
 };
 
-const AVAILABLE_NODES = [2, 3];
+const AVAILABLE_NODES = [1, 2, 3];
 const FIXED_USER_ID = '9';
 
 async function getLeastLoadedNode() {
@@ -37,16 +37,94 @@ async function getLeastLoadedNode() {
     return bestNode.attributes.id;
 }
 
-async function retryWriteEula(serverId: string, retries = 5, delay = 2000) {
+async function retryWriteEula(serverId: string, retries = 20, delay = 2000): Promise<boolean> {
+  const apiKey = process.env.PTERODACTYL_CLIENT_API_KEY;
+  const panelUrl = process.env.PTERODACTYL_PANEL_URL;
+
+  if (!apiKey || !panelUrl) {
+    throw new Error("Pterodactyl environment variables are not set!");
+  }
+
   for (let i = 0; i < retries; i++) {
+    const attempt = i + 1;
+    console.log(`--- Attempt ${attempt}/${retries} for server ${serverId} ---`);
+    
     try {
-        await client.files.write(serverId, "/eula.txt", "eula=true\n"); 
-      return true;
+      console.log(`[Step 1] Writing eula.txt...`);
+      const writeResponse = await fetch(`${panelUrl}/api/client/servers/${serverId}/files/write?file=eula.txt`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'text/plain',
+        },
+        body: 'eula=true',
+      });
+
+      if (!writeResponse.ok && writeResponse.status !== 204) {
+        throw new Error(`API returned an error on write: ${writeResponse.status} ${writeResponse.statusText}`);
+      }
+      console.log(`[Step 1] Write request sent successfully.`);
+      
+      await new Promise(res => setTimeout(res, 500));
+
+      console.log(`[Step 2] Verifying file existence by listing directory...`);
+      const listResponse = await fetch(`${panelUrl}/api/client/servers/${serverId}/files/list?directory=/`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!listResponse.ok) {
+        throw new Error(`API returned an error on list: ${listResponse.status} ${listResponse.statusText}`);
+      }
+
+      const fileList = await listResponse.json();
+      const eulaFile = fileList.data.find((file: any) => file.attributes.name === "eula.txt");
+      
+      if (!eulaFile) {
+        console.log(`[Step 2] eula.txt not found in file list. Retrying...`);
+        await new Promise(res => setTimeout(res, delay));
+        continue; 
+      }
+      
+      console.log(`[Step 2] eula.txt found in file list.`);
+
+      console.log(`[Step 3] Verifying file content...`);
+      const contentsResponse = await fetch(`${panelUrl}/api/client/servers/${serverId}/files/contents?file=eula.txt`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!contentsResponse.ok) {
+        throw new Error(`API returned an error on read contents: ${contentsResponse.status} ${contentsResponse.statusText}`);
+      }
+
+      const eulaText = await contentsResponse.text();
+      console.log(`[Step 3] eula.txt content: "${eulaText.trim()}"`);
+
+      if (eulaText.includes("eula=true")) {
+        console.log("Success! eula.txt is correct.");
+        return true;
+      }
+
+      console.log(`[Step 3] Content was incorrect. Retrying...`);
+
     } catch (e) {
-      if (i === retries - 1) throw e;
+      console.error(`Attempt ${attempt}/${retries} failed:`, e instanceof Error ? e.message : e);
+      if (i === retries - 1) {
+        console.error("Failed to write eula.txt after all retries.");
+        throw e;
+      }
+    }
+
+    if (i < retries - 1) {
       await new Promise(res => setTimeout(res, delay));
     }
   }
+
   return false;
 }
 
@@ -145,6 +223,15 @@ export async function POST(req: Request) {
             },
         });
 
+        let serverReady = await client.servers.getDetails(newPteroServer.attributes.identifier.toString());
+        while (serverReady.attributes.is_installing) {
+            await new Promise(res => setTimeout(res, 1000));
+            serverReady = await client.servers.getDetails(newPteroServer.attributes.identifier.toString());
+            console.log("server is installing");
+        }
+        console.log("server is ready");
+
+
         try {
             await retryWriteEula(newPteroServer.attributes.uuid.toString());
         } catch (e) {
@@ -163,3 +250,35 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'failed to create server. please contact support.' }, { status: 500 });
     }
 } 
+
+export async function GET(req: Request) {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id || !session.user.email) {
+        return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
+
+    const userId = session.user.id;
+    const servers = await prisma.server.findMany({ where: { userId } });
+    const pteroServers = await Promise.all(servers.map(async (server) => {
+        const pteroServer = await client.servers.getDetails(server.pterodactylServerId);
+        return {
+            ...pteroServer.attributes,
+            serverId: server.id,
+        };
+    }));
+    const response = await Promise.all(servers.map(async (server) => {
+        const pteroServer = pteroServers.find((pteroServer) => pteroServer.identifier === server.pterodactylServerId);
+        const allocation = await client.network.listAllocations(server.pterodactylServerId.toString());
+        const ip = ipMappings[allocation.data[0].attributes.ip as keyof typeof ipMappings];
+        const port = allocation.data[0].attributes.port;
+        return {
+            id: server.id,
+            name: pteroServer?.name,
+            type: server.type,
+            ram: server.ram,
+            cores: server.cores,
+            address: `${ip}:${port}`
+        };
+    }));
+    return NextResponse.json(response);
+}

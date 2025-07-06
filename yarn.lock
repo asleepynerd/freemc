@@ -2017,7 +2017,7 @@ proxy-from-env@^1.1.0:
 
 pterodactyl-api-wrapper@asleepynerd/pterodactyl-api-wrapper:
   version "2.0.10"
-  resolved "https://codeload.github.com/asleepynerd/pterodactyl-api-wrapper/tar.gz/733aec03552d27f568e299a1e0782fc7bb0d3914"
+  resolved "https://codeload.github.com/asleepynerd/pterodactyl-api-wrapper/tar.gz/becc6e3b320131724866c067d046fec930beb4df"
   dependencies:
     "@types/axios" "^0.9.36"
     axios "^1.7.9"

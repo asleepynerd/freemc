@@ -19,6 +19,36 @@ export const { handlers: { GET, POST }, auth, signIn, signOut } = NextAuth({
           data: { slackId: account.providerAccountId },
         });
       }
+    },
+    async signIn({ user, account, profile }) {
+      if (account?.provider === 'slack' && profile) {
+        const updateData: any = {};
+        const image =
+          (profile.image as string) ||
+          (profile.image_512 as string) ||
+          (profile.image_192 as string) ||
+          (profile.picture as string);
+        if (typeof image === 'string' && image) updateData.image = image;
+        if (typeof profile.name === 'string' && profile.name) updateData.name = profile.name;
+        if (typeof profile.email === 'string' && profile.email) updateData.email = profile.email;
+        if (Object.keys(updateData).length > 0) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: updateData,
+          });
+        }
+      }
+    },
+    async signOut(event) {
+      const sessionToken =
+        'token' in event && event.token?.sessionToken
+          ? event.token.sessionToken
+          : 'session' in event && event.session?.sessionToken
+          ? event.session.sessionToken
+          : null;
+      if (sessionToken) {
+        await prisma.session.deleteMany({ where: { sessionToken } });
+      }
     }
   },
   callbacks: {
@@ -30,4 +60,4 @@ export const { handlers: { GET, POST }, auth, signIn, signOut } = NextAuth({
     },
   },
   secret: process.env.AUTH_SECRET,
-}) 
+})

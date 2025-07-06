@@ -108,6 +108,8 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
             consoleOutput = consoleOutput.replace(hostRegex, `${session.user.name}@freehost`);
             const ipRegex = /(\d{1,3}\.){3}\d{1,3}/g;
             const ipMatch = consoleOutput.match(ipRegex);
+            const pdaemonRegex = /Pterodactyl Daemon/gi;
+            consoleOutput = consoleOutput.replace(pdaemonRegex, 'freehost daemon');
             if (ipMatch) {
               const ip = ipMatch[0];
               if (ip !== '127.0.0.1' && ip !== '0.0.0.0') {
@@ -150,6 +152,7 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
     });
 
     ws.on("close", () => {
+      console.log("client websocket closed");
       pteroWs.close();
     });
 
