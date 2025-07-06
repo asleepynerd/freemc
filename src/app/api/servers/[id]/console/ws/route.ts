@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { WebSocket } from 'ws';
 import fetch from 'node-fetch';
 import { client, app } from '@/lib/pterodactyl';
@@ -10,6 +12,7 @@ interface PteroWSData {
   socket: string; 
   token: string; 
 }
+
 
 export async function GET() {
   return new Response('WebSocket endpoint', { status: 200 });
