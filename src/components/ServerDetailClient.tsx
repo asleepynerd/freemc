@@ -70,7 +70,7 @@ export default function ServerDetailClient({ id, initialServer }: { id: string, 
   const [powerLoading, setPowerLoading] = useState(false);
   const [command, setCommand] = useState("");
   const consoleRef = useRef<HTMLDivElement>(null);
-  const { isConnected, messages, sendCommand, stats } = useWebSocket(id);
+  const { isConnected, isConnecting, messages, sendCommand, stats, reconnect } = useWebSocket(id);
   const { data: session, status } = useSession();
 
   if (status === "loading") {
@@ -178,7 +178,32 @@ export default function ServerDetailClient({ id, initialServer }: { id: string, 
             position: "relative"
           }}
         >
-          <Text size="sm" style={{ color: "#b3baff", marginBottom: 8 }}>console</Text>
+          <Group justify="space-between" align="center" mb={8}>
+            <Text size="sm" style={{ color: "#b3baff" }}>console</Text>
+            <Group gap="xs">
+              {isConnecting && (
+                <Text size="xs" style={{ color: "#ffd1b3" }}>connecting...</Text>
+              )}
+              {!isConnected && !isConnecting && (
+                <Button 
+                  size="xs" 
+                  color="violet" 
+                  radius="md" 
+                  onClick={reconnect}
+                  style={{ textTransform: "lowercase" }}
+                >
+                  reconnect
+                </Button>
+              )}
+              <div style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: isConnected ? "#b3ffd1" : isConnecting ? "#ffd1b3" : "#ffb3b3",
+                boxShadow: isConnected ? "0 0 8px rgba(179, 255, 209, 0.5)" : "none"
+              }} />
+            </Group>
+          </Group>
           <div 
             ref={consoleRef}
             style={{ 
@@ -196,7 +221,9 @@ export default function ServerDetailClient({ id, initialServer }: { id: string, 
               lineHeight: 1.4
             }}
           >
-            {messages.length === 0 ? (
+            {!isConnected && !isConnecting && messages.length === 0 ? (
+              <Text size="xs" style={{ color: "#888" }}>connection lost. click reconnect to try again.</Text>
+            ) : messages.length === 0 ? (
               <Text size="xs" style={{ color: "#888" }}>no output yet</Text>
             ) : (
               <div dangerouslySetInnerHTML={{ 
@@ -209,11 +236,20 @@ export default function ServerDetailClient({ id, initialServer }: { id: string, 
               value={command}
               onChange={e => setCommand(e.currentTarget.value)}
               onKeyDown={e => { if (e.key === "Enter") handleSendCommand(); }}
-              placeholder="type a command..."
+              placeholder={isConnected ? "type a command..." : "connecting..."}
               radius="md"
               style={{ flex: 1 }}
+              disabled={!isConnected}
             />
-            <Button color="violet" radius="md" onClick={handleSendCommand} style={{ textTransform: "lowercase" }}>send</Button>
+            <Button 
+              color="violet" 
+              radius="md" 
+              onClick={handleSendCommand} 
+              style={{ textTransform: "lowercase" }}
+              disabled={!isConnected}
+            >
+              send
+            </Button>
           </Group>
         </Paper>
       </Stack>

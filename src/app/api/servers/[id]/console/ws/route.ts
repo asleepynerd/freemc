@@ -35,6 +35,8 @@ export function SOCKET(
 }
 
 async function handleConsoleConnection(ws: WebSocket, serverId: string, request: import('http').IncomingMessage) {
+  let pteroWs: WebSocket | null = null;
+  
   try {
     const cookieHeader = request.headers.cookie;
     if (!cookieHeader) {
@@ -108,10 +110,22 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
     }
 
     const data = (await response.json() as any).data as PteroWSData;
-    const pteroWs = new WebSocket(data.socket, { headers: { origin: panelUrl } });
+    pteroWs = new WebSocket(data.socket, { headers: { origin: panelUrl } });
+
+    const connectionTimeout = setTimeout(() => {
+      if (pteroWs && pteroWs.readyState === WebSocket.CONNECTING) {
+        console.error("pterodactyl websocket connection timeout");
+        pteroWs.close();
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close(1011, 'connection timeout');
+        }
+      }
+    }, 10000);
 
     pteroWs.on("open", () => {
-      pteroWs.send(JSON.stringify({ event: "auth", args: [data.token] }));
+      clearTimeout(connectionTimeout);
+      console.log("pterodactyl websocket connected");
+      pteroWs!.send(JSON.stringify({ event: "auth", args: [data.token] }));
     });
 
     pteroWs.on("message", (raw: WebSocket.Data) => {
@@ -119,8 +133,9 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
         const msg = JSON.parse(raw.toString());
         
         if (msg.event === "auth success") {
-          pteroWs.send(JSON.stringify({ event: "send logs", args: [null] }));
-          pteroWs.send(JSON.stringify({ event: "send stats", args: [null] }));
+          console.log("pterodactyl authentication successful");
+          pteroWs!.send(JSON.stringify({ event: "send logs", args: [null] }));
+          pteroWs!.send(JSON.stringify({ event: "send stats", args: [null] }));
         }
         
         if (msg.event === "console output") {
@@ -139,12 +154,14 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
               }
             }
           }
-          ws.send(JSON.stringify({ type: 'console', data: consoleOutput }));
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'console', data: consoleOutput }));
+          }
         }
 
         if (msg.event === "stats") {
           const stats = msg.args[0];
-          if (stats) {
+          if (stats && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'stats', data: stats }));
           }
         }
@@ -154,12 +171,19 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
     });
 
     pteroWs.on("error", (error: Error) => {
+      clearTimeout(connectionTimeout);
       console.error("pterodactyl websocket error:", error);
-      ws.send(JSON.stringify({ type: 'error', data: 'connection error' }));
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'error', data: 'connection error' }));
+      }
     });
 
-    pteroWs.on("close", () => {
-      ws.send(JSON.stringify({ type: 'disconnect', data: 'connection closed' }));
+    pteroWs.on("close", (code, reason) => {
+      clearTimeout(connectionTimeout);
+      console.log("pterodactyl websocket closed", code, reason?.toString());
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'disconnect', data: 'connection closed' }));
+      }
     });
 
     ws.on("message", (raw: WebSocket.Data) => {
@@ -170,25 +194,42 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
             console.warn("invalid command received:", message.data);
             return;
           }
-          pteroWs.send(JSON.stringify({ event: "send command", args: [message.data] }));
+          if (pteroWs && pteroWs.readyState === WebSocket.OPEN) {
+            pteroWs.send(JSON.stringify({ event: "send command", args: [message.data] }));
+          }
+        } else if (message.type === 'ping') {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'pong' }));
+          }
         }
       } catch (error) {
         console.error("error parsing client message:", error);
       }
     });
 
-    ws.on("close", () => {
-      console.log("client websocket closed");
-      pteroWs.close();
+    ws.on("close", (code, reason) => {
+      clearTimeout(connectionTimeout);
+      console.log("client websocket closed", code, reason?.toString());
+      if (pteroWs && pteroWs.readyState === WebSocket.OPEN) {
+        pteroWs.close();
+      }
     });
 
     ws.on("error", (error: Error) => {
+      clearTimeout(connectionTimeout);
       console.error("client websocket error:", error);
-      pteroWs.close();
+      if (pteroWs && pteroWs.readyState === WebSocket.OPEN) {
+        pteroWs.close();
+      }
     });
 
   } catch (error) {
     console.error("error setting up websocket proxy:", error);
-    ws.close(1011, 'Internal server error');
+    if (pteroWs && pteroWs.readyState === WebSocket.OPEN) {
+      pteroWs.close();
+    }
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.close(1011, 'Internal server error');
+    }
   }
 } 
