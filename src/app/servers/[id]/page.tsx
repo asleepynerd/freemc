@@ -1,12 +1,11 @@
-// @ts-nocheck
 import ServerDetailClient from "@/components/ServerDetailClient";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { app, client, ipMappings } from "@/lib/pterodactyl";
 
-export default async function ServerDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function ServerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   
   const session = await auth();
   if (!session || !session.user || !session.user.id) {
