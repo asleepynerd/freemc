@@ -231,7 +231,6 @@ export async function POST(req: Request) {
         }
         console.log("server is ready");
 
-
         try {
             await retryWriteEula(newPteroServer.attributes.uuid.toString());
         } catch (e) {
@@ -258,27 +257,33 @@ export async function GET(req: Request) {
     }
 
     const userId = session.user.id;
-    const servers = await prisma.server.findMany({ where: { userId } });
-    const pteroServers = await Promise.all(servers.map(async (server) => {
-        const pteroServer = await client.servers.getDetails(server.pterodactylServerId);
-        return {
-            ...pteroServer.attributes,
-            serverId: server.id,
-        };
-    }));
-    const response = await Promise.all(servers.map(async (server) => {
-        const pteroServer = pteroServers.find((pteroServer) => pteroServer.identifier === server.pterodactylServerId);
-        const allocation = await client.network.listAllocations(server.pterodactylServerId.toString());
-        const ip = ipMappings[allocation.data[0].attributes.ip as keyof typeof ipMappings];
-        const port = allocation.data[0].attributes.port;
-        return {
-            id: server.id,
-            name: pteroServer?.name,
-            type: server.type,
-            ram: server.ram,
-            cores: server.cores,
-            address: `${ip}:${port}`
-        };
-    }));
-    return NextResponse.json(response);
+    
+    try {
+        const servers = await prisma.server.findMany({ where: { userId } });
+        const pteroServers = await Promise.all(servers.map(async (server) => {
+            const pteroServer = await client.servers.getDetails(server.pterodactylServerId);
+            return {
+                ...pteroServer.attributes,
+                serverId: server.id,
+            };
+        }));
+        const response = await Promise.all(servers.map(async (server) => {
+            const pteroServer = pteroServers.find((pteroServer) => pteroServer.identifier === server.pterodactylServerId);
+            const allocation = await client.network.listAllocations(server.pterodactylServerId.toString());
+            const ip = ipMappings[allocation.data[0].attributes.ip as keyof typeof ipMappings];
+            const port = allocation.data[0].attributes.port;
+            return {
+                id: server.id,
+                name: pteroServer?.name,
+                type: server.type,
+                ram: server.ram,
+                cores: server.cores,
+                address: `${ip}:${port}`
+            };
+        }));
+        return NextResponse.json(response);
+    } catch (error) {
+        console.error("failed to get servers:", error);
+        return NextResponse.json({ error: 'failed to get servers' }, { status: 500 });
+    }
 }

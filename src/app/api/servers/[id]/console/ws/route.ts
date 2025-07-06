@@ -26,6 +26,11 @@ export function SOCKET(
 ) {
   const serverId = context.params.id;
   
+  if (!serverId || typeof serverId !== 'string' || serverId.length < 1) {
+    ws.close(1008, 'invalid server id');
+    return;
+  }
+  
   handleConsoleConnection(ws, serverId as string, request);
 }
 
@@ -36,12 +41,15 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
       ws.close(1001, 'no authentication cookies');
       return;
     }
-    const sessionToken = cookieHeader.split(';')
-      .find(c => c.trim().startsWith('__Secure-authjs.session-token='))
+    
+    const sessionToken = cookieHeader
+      .split(';')
+      .map(c => c.trim())
+      .find(c => c.startsWith('__Secure-authjs.session-token='))
       ?.split('=')[1];
     
     if (!sessionToken) {
-      console.log("no session token");
+      console.log("no session token found in cookies");
       ws.close(1001, 'no session token');
       return;
     }
@@ -52,19 +60,26 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
     });
     
     if (!session || !session.user) {
-      console.log("invalid session");
+      console.log("invalid session token");
       ws.close(1001, 'invalid session');
+      return;
+    }
+
+    if (session.expires < new Date()) {
+      console.log("session expired");
+      ws.close(1001, 'session expired');
       return;
     }
 
     const dbServer = await prisma.server.findUnique({ where: { id: serverId } });
     if (!dbServer) {
-      console.log("server not found");
+      console.log("server not found:", serverId);
       ws.close(1000, 'server not found');
       return;
     }
 
     if (dbServer.userId !== session.user.id) {
+      console.log("server not owned by user:", serverId, session.user.id);
       ws.close(1003, 'server not owned by user');
       return;
     }
@@ -74,6 +89,12 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
     const panelUrl = process.env.PTERODACTYL_PANEL_URL;
     const apiKey = process.env.PTERODACTYL_CLIENT_API_KEY;
 
+    if (!panelUrl || !apiKey) {
+      console.error("missing pterodactyl configuration");
+      ws.close(1011, 'server configuration error');
+      return;
+    }
+
     const response = await fetch(`${panelUrl}/api/client/servers/${pterodactylId}/websocket`, {
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -82,6 +103,7 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
     });
 
     if (!response.ok) {
+      console.error("failed to get websocket url from pterodactyl:", response.status);
       throw new Error('failed to get websocket url from pterodactyl');
     }
 
@@ -144,6 +166,10 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
       try {
         const message = JSON.parse(raw.toString());
         if (message.type === 'command') {
+          if (typeof message.data !== 'string' || message.data.length > 1000) {
+            console.warn("invalid command received:", message.data);
+            return;
+          }
           pteroWs.send(JSON.stringify({ event: "send command", args: [message.data] }));
         }
       } catch (error) {

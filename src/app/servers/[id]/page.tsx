@@ -13,7 +13,6 @@ export default async function ServerDetailPage({ params }: { params: Promise<{ i
   }
   
   const server = await prisma.server.findUnique({ where: { id } });
-  console.log(server);
   
   if (!server) {
     return notFound();
@@ -35,7 +34,6 @@ export default async function ServerDetailPage({ params }: { params: Promise<{ i
     address: `${ip}:${port}`
   };
 
-  console.log(serverData);
 
   return <ServerDetailClient id={id} initialServer={serverData} />;
 } 

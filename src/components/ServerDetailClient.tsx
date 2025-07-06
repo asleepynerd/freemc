@@ -121,8 +121,23 @@ export default function ServerDetailClient({ id, initialServer }: { id: string, 
   return (
     <Container size="lg" py="xl" style={{ minHeight: "80vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
       <Stack gap="lg" style={{ width: "100%", maxWidth: 1100, margin: "0 auto" }}>
+        <Group justify="flex-start" align="center">
+          <Button component={Link} href="/dashboard" variant="subtle" color="gray" size="xs" radius="md" style={{ textTransform: "lowercase" }}>
+            ← back to dashboard
+          </Button>
+        </Group>
         <Group justify="space-between" align="center">
-          <Title order={2} style={{ color: "#b3baff", fontSize: "2rem" }}>{server.name}</Title>
+          <Title
+            order={2}
+            style={{
+              color: "#b3baff",
+              fontSize: "2rem",
+              position: "relative",
+              zIndex: 1000,
+            }}
+          >
+            {server.name}
+          </Title>
           <Button component={Link} href={`/servers/${id}/settings`} leftSection={<IconSettings size={18} />} color="gray" radius="md" size="sm" variant="outline" style={{ textTransform: "lowercase" }}>
             settings
           </Button>
