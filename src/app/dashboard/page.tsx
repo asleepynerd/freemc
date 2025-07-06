@@ -26,8 +26,8 @@ export default async function DashboardPage() {
     pteroServers = [];
   }
 
-  const serversWithNames = servers.map((srv) => {
-    const ptero = pteroServers.find((p) => p.identifier === srv.pterodactylServerId);
+  const serversWithNames = servers.map((srv: any) => {
+    const ptero = pteroServers.find((p: any) => p.identifier === srv.pterodactylServerId);
     return { ...srv, name: ptero?.name };
   });
 
