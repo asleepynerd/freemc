@@ -8,8 +8,8 @@ import { redirect } from "next/navigation";
 
 const serverTypes = [
   { value: "2", label: "vanilla" },
-  { value: "3", label: "forge" },
-  { value: "5", label: "paper" },
+  //{ value: "3", label: "forge" },
+  //{ value: "5", label: "paper" },
 ];
 
 export default function DashboardPage() {

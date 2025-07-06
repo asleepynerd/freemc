@@ -5,8 +5,8 @@ import { app, client, ipMappings } from '@/lib/pterodactyl';
 
 const serverTypeDetails: { [key: number]: { name: string; ram: number; cores: number; disk: number; egg: number; image: string } } = {
     2: { name: 'Vanilla', ram: 4096, cores: 2, disk: 1024, egg: 2, image: 'ghcr.io/pterodactyl/yolks:java_21' },
-    3: { name: 'Forge', ram: 6144, cores: 4, disk: 4096, egg: 3, image: 'ghcr.io/pterodactyl/yolks:java_21' },
-    5: { name: 'Paper', ram: 4096, cores: 4, disk: 2048, egg: 5, image: 'ghcr.io/pterodactyl/yolks:java_21' },
+    //3: { name: 'Forge', ram: 6144, cores: 4, disk: 4096, egg: 3, image: 'ghcr.io/pterodactyl/yolks:java_21' },
+    //5: { name: 'Paper', ram: 4096, cores: 4, disk: 2048, egg: 5, image: 'ghcr.io/pterodactyl/yolks:java_21' },
 };
 
 const AVAILABLE_NODES = [1, 2, 3];
