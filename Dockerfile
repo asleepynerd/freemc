@@ -39,6 +39,8 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
+COPY --from=builder /app/ /
+
 FROM base AS runner
 WORKDIR /app
 
