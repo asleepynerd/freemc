@@ -1,3 +1,19 @@
+# Free Minecraft Server Panel
+
+This project is a free Minecraft server panel built with:
+- **Mantine** for the UI
+- **Custom Slack OAuth** for authentication (no next-auth)
+- **PostgreSQL** with **Prisma** ORM
+- **Pterodactyl API** (via pterodactyl-api-wrapper) for server management
+
+**Features:**
+- Users authenticate via Slack
+- Each user can create up to 2 servers
+- Supported server types:
+  - Vanilla (ID 2): up to 4GB RAM, 2 cores
+  - Forge (ID 3): up to 6GB RAM, 4 cores
+  - Paper (ID 5): up to 4GB RAM, 4 cores
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
