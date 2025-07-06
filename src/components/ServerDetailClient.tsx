@@ -70,7 +70,7 @@ export default function ServerDetailClient({ id, initialServer }: { id: string, 
   const [powerLoading, setPowerLoading] = useState(false);
   const [command, setCommand] = useState("");
   const consoleRef = useRef<HTMLDivElement>(null);
-  const { isConnected, isConnecting, messages, sendCommand, stats, reconnect } = useWebSocket(id);
+  const { isConnected, isConnecting, messages, sendCommand, stats, reconnect, connectionError } = useWebSocket(id);
   const { data: session, status } = useSession();
 
   if (status === "loading") {
@@ -204,6 +204,21 @@ export default function ServerDetailClient({ id, initialServer }: { id: string, 
               }} />
             </Group>
           </Group>
+          {connectionError && (
+            <Paper 
+              p="xs" 
+              mb="xs" 
+              style={{ 
+                background: "rgba(255, 179, 179, 0.1)", 
+                border: "1px solid rgba(255, 179, 179, 0.3)",
+                borderRadius: 6
+              }}
+            >
+              <Text size="xs" style={{ color: "#ffb3b3" }}>
+                {connectionError}
+              </Text>
+            </Paper>
+          )}
           <div 
             ref={consoleRef}
             style={{ 
@@ -222,7 +237,9 @@ export default function ServerDetailClient({ id, initialServer }: { id: string, 
             }}
           >
             {!isConnected && !isConnecting && messages.length === 0 ? (
-              <Text size="xs" style={{ color: "#888" }}>connection lost. click reconnect to try again.</Text>
+              <Text size="xs" style={{ color: "#888" }}>
+                {connectionError ? `Connection failed: ${connectionError}` : "connection lost. click reconnect to try again."}
+              </Text>
             ) : messages.length === 0 ? (
               <Text size="xs" style={{ color: "#888" }}>no output yet</Text>
             ) : (

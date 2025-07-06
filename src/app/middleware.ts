@@ -9,6 +9,11 @@ const protectedPaths = [
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  
+  if (pathname.includes('/ws')) {
+    return NextResponse.next();
+  }
+  
   const isProtected = protectedPaths.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   );

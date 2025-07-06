@@ -13,9 +13,10 @@ interface PteroWSData {
   token: string; 
 }
 
+const activeConnections = new Map<string, WebSocket>();
 
 export async function GET() {
-  return new Response('WebSocket endpoint', { status: 200 });
+  return new Response('websocket endpoint', { status: 200 });
 }
 
 export function SOCKET(
@@ -24,26 +25,75 @@ export function SOCKET(
   server: import('ws').WebSocketServer,
   context: { params: Record<string, string | string[]> }
 ) {
+  console.log("websocket connection attempt received");
   const serverId = context.params.id;
   
   if (!serverId || typeof serverId !== 'string' || serverId.length < 1) {
+    console.log("invalid server id:", serverId);
     ws.close(1008, 'invalid server id');
     return;
   }
   
+  const existingConnection = activeConnections.get(serverId);
+  if (existingConnection && existingConnection.readyState === WebSocket.OPEN) {
+    console.log("closing existing connection for server:", serverId);
+    existingConnection.close(1000, 'new connection');
+  }
+  
+  activeConnections.set(serverId, ws);
+  
+  console.log("processing websocket connection for server:", serverId);
   handleConsoleConnection(ws, serverId as string, request);
 }
 
 async function handleConsoleConnection(ws: WebSocket, serverId: string, request: import('http').IncomingMessage) {
+  console.log("starting websocket connection handler for server:", serverId);
   let pteroWs: WebSocket | null = null;
+  let connectionTimeout: NodeJS.Timeout | null = null;
+  let isClosing = false;
+  
+  const cleanup = () => {
+    if (connectionTimeout) {
+      clearTimeout(connectionTimeout);
+      connectionTimeout = null;
+    }
+    if (pteroWs && pteroWs.readyState === WebSocket.OPEN) {
+      pteroWs.close();
+    }
+    if (activeConnections.get(serverId) === ws) {
+      activeConnections.delete(serverId);
+    }
+  };
+
+  const safeClose = (code: number, reason: string) => {
+    if (!isClosing && ws.readyState === WebSocket.OPEN) {
+      isClosing = true;
+      cleanup();
+      ws.close(code, reason);
+    }
+  };
+
+  const safeSend = (data: any) => {
+    if (!isClosing && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify(data));
+      } catch (error) {
+        console.error("error sending message to client:", error);
+        safeClose(1011, 'send error');
+      }
+    }
+  };
   
   try {
+    console.log("checking authentication...");
     const cookieHeader = request.headers.cookie;
     if (!cookieHeader) {
-      ws.close(1001, 'no authentication cookies');
+      console.log("no cookie header found");
+      safeClose(1001, 'no authentication cookies');
       return;
     }
     
+    console.log("extracting session token from cookies...");
     const sessionToken = cookieHeader
       .split(';')
       .map(c => c.trim())
@@ -52,9 +102,10 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
     
     if (!sessionToken) {
       console.log("no session token found in cookies");
-      ws.close(1001, 'no session token');
+      safeClose(1001, 'no session token');
       return;
     }
+    
 
     const session = await prisma.session.findUnique({
       where: { sessionToken },
@@ -63,69 +114,121 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
     
     if (!session || !session.user) {
       console.log("invalid session token");
-      ws.close(1001, 'invalid session');
+      safeClose(1001, 'invalid session');
       return;
     }
 
     if (session.expires < new Date()) {
       console.log("session expired");
-      ws.close(1001, 'session expired');
+      safeClose(1001, 'session expired');
       return;
     }
 
     const dbServer = await prisma.server.findUnique({ where: { id: serverId } });
     if (!dbServer) {
       console.log("server not found:", serverId);
-      ws.close(1000, 'server not found');
+      safeClose(1000, 'server not found');
       return;
     }
 
     if (dbServer.userId !== session.user.id) {
       console.log("server not owned by user:", serverId, session.user.id);
-      ws.close(1003, 'server not owned by user');
+      safeClose(1003, 'server not owned by user');
       return;
     }
 
     const pterodactylId = dbServer.pterodactylServerId;
 
+    console.log("checking pterodactyl configuration...");
     const panelUrl = process.env.PTERODACTYL_PANEL_URL;
     const apiKey = process.env.PTERODACTYL_CLIENT_API_KEY;
 
     if (!panelUrl || !apiKey) {
       console.error("missing pterodactyl configuration");
-      ws.close(1011, 'server configuration error');
+      console.log("panel url:", panelUrl ? "set" : "missing");
+      console.log("api key:", apiKey ? "set" : "missing");
+      safeClose(1011, 'server configuration error');
+      return;
+    }
+    
+    console.log("pterodactyl configuration found, panel url:", panelUrl);
+
+    const fetchTimeout = setTimeout(() => {
+      safeClose(1011, 'fetch timeout');
+    }, 15000);
+
+    console.log("fetching websocket url from pterodactyl...");
+    let response;
+    try {
+      const fetchUrl = `${panelUrl}/api/client/servers/${pterodactylId}/websocket`;
+      console.log("fetch url:", fetchUrl);
+      response = await fetch(fetchUrl, {
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+      });
+      clearTimeout(fetchTimeout);
+      console.log("fetch response status:", response.status);
+    } catch (error) {
+      clearTimeout(fetchTimeout);
+      console.error("fetch error:", error);
+      safeClose(1011, 'fetch error');
       return;
     }
 
-    const response = await fetch(`${panelUrl}/api/client/servers/${pterodactylId}/websocket`, {
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-    });
-
     if (!response.ok) {
       console.error("failed to get websocket url from pterodactyl:", response.status);
-      throw new Error('failed to get websocket url from pterodactyl');
+      safeClose(1011, 'pterodactyl api error');
+      return;
     }
 
-    const data = (await response.json() as any).data as PteroWSData;
-    pteroWs = new WebSocket(data.socket, { headers: { origin: panelUrl } });
+    let data: PteroWSData;
+    try {
+      const responseData = await response.json() as any;
+      data = responseData.data as PteroWSData;
+      if (!data.socket || !data.token) {
+        throw new Error('invalid websocket data from pterodactyl');
+      }
+    } catch (error) {
+      console.error("error parsing pterodactyl response:", error);
+      safeClose(1011, 'invalid response');
+      return;
+    }
 
-    const connectionTimeout = setTimeout(() => {
+    console.log("creating pterodactyl websocket connection...");
+    console.log("pterodactyl websocket url:", data.socket);
+    try {
+      pteroWs = new WebSocket(data.socket, { 
+        headers: { origin: panelUrl },
+        timeout: 10000
+      });
+      console.log("pterodactyl websocket created successfully");
+    } catch (error) {
+      console.error("error creating pterodactyl websocket:", error);
+      safeClose(1011, 'websocket creation error');
+      return;
+    }
+
+    connectionTimeout = setTimeout(() => {
       if (pteroWs && pteroWs.readyState === WebSocket.CONNECTING) {
         console.error("pterodactyl websocket connection timeout");
-        pteroWs.close();
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.close(1011, 'connection timeout');
-        }
+        safeClose(1011, 'connection timeout');
       }
     }, 10000);
 
     pteroWs.on("open", () => {
-      clearTimeout(connectionTimeout);
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout);
+        connectionTimeout = null;
+      }
       console.log("pterodactyl websocket connected");
-      pteroWs!.send(JSON.stringify({ event: "auth", args: [data.token] }));
+      try {
+        pteroWs!.send(JSON.stringify({ event: "auth", args: [data.token] }));
+      } catch (error) {
+        console.error("error sending auth to pterodactyl:", error);
+        safeClose(1011, 'auth error');
+      }
     });
 
     pteroWs.on("message", (raw: WebSocket.Data) => {
@@ -134,8 +237,12 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
         
         if (msg.event === "auth success") {
           console.log("pterodactyl authentication successful");
-          pteroWs!.send(JSON.stringify({ event: "send logs", args: [null] }));
-          pteroWs!.send(JSON.stringify({ event: "send stats", args: [null] }));
+          try {
+            pteroWs!.send(JSON.stringify({ event: "send logs", args: [null] }));
+            pteroWs!.send(JSON.stringify({ event: "send stats", args: [null] }));
+          } catch (error) {
+            console.error("error requesting logs/stats:", error);
+          }
         }
         
         if (msg.event === "console output") {
@@ -154,15 +261,13 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
               }
             }
           }
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'console', data: consoleOutput }));
-          }
+          safeSend({ type: 'console', data: consoleOutput });
         }
 
         if (msg.event === "stats") {
           const stats = msg.args[0];
-          if (stats && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'stats', data: stats }));
+          if (stats) {
+            safeSend({ type: 'stats', data: stats });
           }
         }
       } catch (error) {
@@ -171,19 +276,15 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
     });
 
     pteroWs.on("error", (error: Error) => {
-      clearTimeout(connectionTimeout);
       console.error("pterodactyl websocket error:", error);
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'error', data: 'connection error' }));
-      }
+      safeSend({ type: 'error', data: 'connection error' });
+      safeClose(1011, 'pterodactyl error');
     });
 
     pteroWs.on("close", (code, reason) => {
-      clearTimeout(connectionTimeout);
       console.log("pterodactyl websocket closed", code, reason?.toString());
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'disconnect', data: 'connection closed' }));
-      }
+      safeSend({ type: 'disconnect', data: 'connection closed' });
+      safeClose(1011, 'pterodactyl closed');
     });
 
     ws.on("message", (raw: WebSocket.Data) => {
@@ -195,12 +296,14 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
             return;
           }
           if (pteroWs && pteroWs.readyState === WebSocket.OPEN) {
-            pteroWs.send(JSON.stringify({ event: "send command", args: [message.data] }));
+            try {
+              pteroWs.send(JSON.stringify({ event: "send command", args: [message.data] }));
+            } catch (error) {
+              console.error("error sending command to pterodactyl:", error);
+            }
           }
         } else if (message.type === 'ping') {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'pong' }));
-          }
+          safeSend({ type: 'pong' });
         }
       } catch (error) {
         console.error("error parsing client message:", error);
@@ -208,28 +311,18 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
     });
 
     ws.on("close", (code, reason) => {
-      clearTimeout(connectionTimeout);
       console.log("client websocket closed", code, reason?.toString());
-      if (pteroWs && pteroWs.readyState === WebSocket.OPEN) {
-        pteroWs.close();
-      }
+      cleanup();
     });
 
     ws.on("error", (error: Error) => {
-      clearTimeout(connectionTimeout);
       console.error("client websocket error:", error);
-      if (pteroWs && pteroWs.readyState === WebSocket.OPEN) {
-        pteroWs.close();
-      }
+      cleanup();
     });
 
   } catch (error) {
     console.error("error setting up websocket proxy:", error);
-    if (pteroWs && pteroWs.readyState === WebSocket.OPEN) {
-      pteroWs.close();
-    }
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.close(1011, 'Internal server error');
-    }
+    cleanup();
+    safeClose(1011, 'Internal server error');
   }
 } 
