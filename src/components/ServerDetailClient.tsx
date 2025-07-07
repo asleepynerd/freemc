@@ -65,13 +65,13 @@ function parseAnsiToHtml(text: string): string {
 }
 
 export default function ServerDetailClient({ id, initialServer }: { id: string, initialServer: any }) {
+  const { data: session, status } = useSession();
   const [server, setServer] = useState<any>(initialServer);
   const [loading, setLoading] = useState(false);
   const [powerLoading, setPowerLoading] = useState(false);
   const [command, setCommand] = useState("");
   const consoleRef = useRef<HTMLDivElement>(null);
   const { isConnected, isConnecting, messages, sendCommand, stats, reconnect, connectionError } = useWebSocket(id);
-  const { data: session, status } = useSession();
 
   if (status === "loading") {
     return <Group justify="center" align="center" style={{ minHeight: 300, width: "100%" }}><Loader color="violet" /></Group>;
@@ -89,6 +89,12 @@ export default function ServerDetailClient({ id, initialServer }: { id: string, 
       .finally(() => setLoading(false));
   }, [id]);
 
+  useEffect(() => {
+    if (consoleRef.current) {
+      consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   const handlePower = async (action: "start" | "stop" | "restart") => {
     setPowerLoading(true);
     await fetch(`/api/servers/${id}/power`, {
@@ -105,12 +111,6 @@ export default function ServerDetailClient({ id, initialServer }: { id: string, 
       setCommand("");
     }
   };
-
-  useEffect(() => {
-    if (consoleRef.current) {
-      consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
-    }
-  }, [messages]);
 
   if (loading || !server) {
     return <Group justify="center" align="center" style={{ minHeight: 300 }}><Loader color="violet" /></Group>;
