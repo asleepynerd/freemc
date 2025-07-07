@@ -85,6 +85,10 @@ export async function PATCH(req: Request, context: any) {
     if (typeof body.address !== 'string' || body.address.length < 1 || body.address.length > 128) {
       return NextResponse.json({ error: 'invalid address' }, { status: 400 });
     }
+    
+    if (server.type !== 2 && server.type !== 5) {
+      return NextResponse.json({ error: 'custom addresses are only available for Minecraft servers' }, { status: 400 });
+    }
     try {
       const resolver = new Resolver();
       resolver.setServers(['1.1.1.1']);

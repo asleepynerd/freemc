@@ -9,9 +9,10 @@ interface ServerSettingsClientProps {
   id: string;
   serverName: string;
   address: string;
+  serverType: number;
 }
 
-export default function ServerSettingsClient({ id, serverName, address }: ServerSettingsClientProps) {
+export default function ServerSettingsClient({ id, serverName, address, serverType }: ServerSettingsClientProps) {
   const [name, setName] = useState(serverName);
   const [renamed, setRenamed] = useState(false);
   const [deleted, setDeleted] = useState(false);
@@ -136,14 +137,16 @@ Target:    <your server IP or hostname>`}
             </Text>
           </Paper>
         )}
-        <Paper withBorder p="lg" radius="lg" style={{ background: "rgba(35, 36, 58, 0.8)", backdropFilter: "blur(8px)", boxShadow: "0 4px 24px rgba(24, 25, 38, 0.4)", border: "1px solid rgba(179, 186, 255, 0.1)", minHeight: 120, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <Text size="sm" style={{ color: "#ededed", opacity: 0.8, marginBottom: 8 }}>custom domain/address</Text>
-          <Group gap="xs">
-            <TextInput value={customAddress} onChange={e => setCustomAddress(e.currentTarget.value)} radius="md" size="md" style={{ flex: 1 }} placeholder="e.g. mc.example.com or 1.2.3.4:25565" />
-            <Button color="violet" radius="md" size="md" onClick={handleAddressSave} style={{ textTransform: "lowercase" }}>save</Button>
-          </Group>
-          {addressSaved && <Text size="xs" style={{ color: "#b3ffd1", marginTop: 8 }}>saved!</Text>}
-        </Paper>
+        {(serverType === 2 || serverType === 5) && (
+          <Paper withBorder p="lg" radius="lg" style={{ background: "rgba(35, 36, 58, 0.8)", backdropFilter: "blur(8px)", boxShadow: "0 4px 24px rgba(24, 25, 38, 0.4)", border: "1px solid rgba(179, 186, 255, 0.1)", minHeight: 120, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <Text size="sm" style={{ color: "#ededed", opacity: 0.8, marginBottom: 8 }}>custom domain/address</Text>
+            <Group gap="xs">
+              <TextInput value={customAddress} onChange={e => setCustomAddress(e.currentTarget.value)} radius="md" size="md" style={{ flex: 1 }} placeholder="e.g. mc.example.com or 1.2.3.4:25565" />
+              <Button color="violet" radius="md" size="md" onClick={handleAddressSave} style={{ textTransform: "lowercase" }}>save</Button>
+            </Group>
+            {addressSaved && <Text size="xs" style={{ color: "#b3ffd1", marginTop: 8 }}>saved!</Text>}
+          </Paper>
+        )}
         <Paper withBorder p="lg" radius="lg" style={{ background: "rgba(35, 36, 58, 0.8)", backdropFilter: "blur(8px)", boxShadow: "0 4px 24px rgba(24, 25, 38, 0.4)", border: "1px solid rgba(255, 179, 179, 0.1)", minHeight: 100, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <Text size="sm" style={{ color: "#ffd1b3", opacity: 0.8, marginBottom: 8 }}>danger zone</Text>
           <Button leftSection={<IconTrash size={18} />} color="red" radius="md" size="md" onClick={() => setShowConfirm(true)} style={{ textTransform: "lowercase" }}>delete server</Button>

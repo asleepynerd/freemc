@@ -49,5 +49,5 @@ export default async function ServerSettingsPage({ params }: { params: Promise<{
     address = server.address;
   }
 
-  return <ServerSettingsClient id={id} serverName={serverName} address={address} />;
+  return <ServerSettingsClient id={id} serverName={serverName} address={address} serverType={server.type} />;
 } 
