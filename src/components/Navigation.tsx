@@ -47,7 +47,7 @@ export default function Navigation() {
                   variant="subtle"
                   style={{ color: "#b3baff", opacity: 0.7 }}
                 >
-                  <Icon size={22} />
+                  <Icon size={22} /> {link.label}
                 </ActionIcon>
               ) : (
                 <ActionIcon
@@ -64,7 +64,7 @@ export default function Navigation() {
                     transition: "background 0.2s, color 0.2s, opacity 0.2s",
                   }}
                 >
-                  <Icon size={22} />
+                  <Icon size={22} /> {link.label}
                 </ActionIcon>
               );
             })}
