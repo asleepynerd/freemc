@@ -188,6 +188,9 @@ export default function DashboardPage() {
                 placeholder="select version"
                 data={[
                   { value: "latest", label: "latest" },
+                  { value: "1.21.7", label: "1.21.7" },
+                  { value: "1.21.6", label: "1.21.6" },
+                  { value: "1.21.5", label: "1.21.5" },
                   { value: "1.21.4", label: "1.21.4" },
                   { value: "1.21.3", label: "1.21.3" },
                   { value: "1.21.1", label: "1.21.1" },
