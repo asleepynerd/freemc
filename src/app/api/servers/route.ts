@@ -6,7 +6,10 @@ import { app, client, ipMappings } from '@/lib/pterodactyl';
 const serverTypeDetails: { [key: number]: { name: string; ram: number; cores: number; disk: number; egg: number; image: string } } = {
     2: { name: 'vanilla', ram: 4096, cores: 2, disk: 1024, egg: 2, image: 'ghcr.io/pterodactyl/yolks:java_21' },
     //3: { name: 'Forge', ram: 6144, cores: 4, disk: 4096, egg: 3, image: 'ghcr.io/pterodactyl/yolks:java_21' },
-    5: { name: 'paper', ram: 4096, cores: 4, disk: 2048, egg: 5, image: 'ghcr.io/pterodactyl/yolks:java_21' },
+  5: { name: 'paper', ram: 4096, cores: 4, disk: 2048, egg: 5, image: 'ghcr.io/pterodactyl/yolks:java_21' },
+  23: { name: 'factorio', ram: 2048, cores: 4, disk: 2048, egg: 23, image: 'ghcr.io/ptero-eggs/yolks:debian' },
+  24: { name: 'terraria', ram: 3072, cores: 4, disk: 2048, egg: 24, image: 'ghcr.io/ptero-eggs/yolks:debian' },
+  25: { name: 'tmodloader', ram: 4096, cores: 4, disk: 2048, egg: 25, image: 'ghcr.io/ptero-eggs/yolks:dotnet_8' },
 };
 
 const AVAILABLE_NODES = [1, 2, 3];
@@ -175,27 +178,42 @@ export async function POST(req: Request) {
         const selectedNodeId = await getLeastLoadedNode();
         
         const details = serverTypeDetails[type];
+
+      // dynamically set environment variables based on server type
+      const environment: { [key: string]: string } = {};
+      if (type === 2) {
+        environment.SERVER_JARFILE = "server.jar";
+        environment.VANILLA_VERSION = version || "latest";
+      } else if (type === 5) {
+        environment.PAPER_VERSION = version || "latest";
+      } else if (type === 23) {
+        environment.FACTORIO_VERSION = version || "latest";
+      } else if (type === 24) {
+        environment.TERRARIA_VERSION = version || "latest";
+      } else if (type === 25) {
+        environment.TMODLOADER_VERSION = version || "latest";
+      }
         
-        const environment: { [key: string]: string } = {
-            SERVER_JARFILE: "server.jar",
-            VANILLA_VERSION: version || "latest",
-            FORGE_VERSION: "latest",
-            PAPER_VERSION: version || "latest",
-            MINECRAFT_VERSION: version || "latest",
-            BUILD_NUMBER: "latest",
-            SERVER_NAME: `${userName}'s ${details.name} Server`,
-            SERVER_PORT: "25565",
-            EULA: "true",
-            ENABLE_RCON: "false",
-            RCON_PORT: "25575",
-            RCON_PASSWORD: "",
-            MEMORY: `${details.ram}M`,
-            MAX_PLAYERS: "20",
-            VIEW_DISTANCE: "10",
-            SPAWN_PROTECTION: "16",
-            MOTD_1: "Welcome to the server!",
-            MOTD_2: "Have fun playing!",
-        };
+        // const environment: { [key: string]: string } = {
+        //     SERVER_JARFILE: "server.jar",
+        //     VANILLA_VERSION: version || "latest",
+        //     FORGE_VERSION: "latest",
+        //     PAPER_VERSION: version || "latest",
+        //     MINECRAFT_VERSION: version || "latest",
+        //     BUILD_NUMBER: "latest",
+        //     SERVER_NAME: `${userName}'s ${details.name} Server`,
+        //     SERVER_PORT: "25565",
+        //     EULA: "true",
+        //     ENABLE_RCON: "false",
+        //     RCON_PORT: "25575",
+        //     RCON_PASSWORD: "",
+        //     MEMORY: `${details.ram}M`,
+        //     MAX_PLAYERS: "20",
+        //     VIEW_DISTANCE: "10",
+        //     SPAWN_PROTECTION: "16",
+        //     MOTD_1: "Welcome to the server!",
+        //     MOTD_2: "Have fun playing!",
+        // };
         
         const newPteroServer = await app.servers.create({
             name: `${userName}'s ${details.name} server`,
