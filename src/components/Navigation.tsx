@@ -9,7 +9,7 @@ import { useSession, signIn, signOut } from "next-auth/react";
 const navLinks = [
   { href: "/", icon: IconHome, label: "home" },
   { href: "/dashboard", icon: IconLayoutDashboard, label: "dashboard" },
-  { href: "https://github.com/", icon: IconBrandGithub, label: "github", external: true },
+  { href: "https://github.com/asleepynerd/freemc", icon: IconBrandGithub, label: "github", external: true },
 ];
 
 export default function Navigation() {
