@@ -95,38 +95,38 @@ export default function Navigation() {
         <Stack gap="md">
           {navLinks.map(link => {
             const Icon = link.icon;
-            return link.external ? (
-              <ActionIcon
-                key={link.href}
-                component="a"
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                size={40}
-                variant="subtle"
-                style={{ color: "#b3baff", opacity: 0.7 }}
-              >
-                <Icon size={24} />
-              </ActionIcon>
-            ) : (
-              <Group gap={8} align="center">
-                <ActionIcon
-                  key={link.href}
-                  component={Link}
-                  href={link.href}
-                  size={40}
-                  variant={pathname === link.href ? "filled" : "subtle"}
-                  style={{
-                    color: pathname === link.href ? "#fff" : "#b3baff",
-                    background: pathname === link.href ? "#23243a" : "transparent",
-                    opacity: pathname === link.href ? 1 : 0.7,
-                    borderRadius: 12,
-                    transition: "background 0.2s, color 0.2s, opacity 0.2s",
-                  }}
-                  onClick={close}
-                >
-                  <Icon size={24} />
-                </ActionIcon>
+            return (
+              <Group key={link.href} gap={8} align="center">
+                {link.external ? (
+                  <ActionIcon
+                    component="a"
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    size={40}
+                    variant="subtle"
+                    style={{ color: "#b3baff", opacity: 0.7 }}
+                  >
+                    <Icon size={24} />
+                  </ActionIcon>
+                ) : (
+                  <ActionIcon
+                    component={Link}
+                    href={link.href}
+                    size={40}
+                    variant={pathname === link.href ? "filled" : "subtle"}
+                    style={{
+                      color: pathname === link.href ? "#fff" : "#b3baff",
+                      background: pathname === link.href ? "#23243a" : "transparent",
+                      opacity: pathname === link.href ? 1 : 0.7,
+                      borderRadius: 12,
+                      transition: "background 0.2s, color 0.2s, opacity 0.2s",
+                    }}
+                    onClick={close}
+                  >
+                    <Icon size={24} />
+                  </ActionIcon>
+                )}
                 <Text size="sm" style={{ color: "#b3baff" }}>{link.label}</Text>
               </Group>
             );
