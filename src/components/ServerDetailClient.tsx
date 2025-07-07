@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Container, Title, Text, Stack, Button, Group, Paper, TextInput, Progress, Loader } from "@mantine/core";
 import Link from "next/link";
-import { IconSettings } from "@tabler/icons-react";
+import { IconSettings, IconFolder } from "@tabler/icons-react";
 import useWebSocket from "@/hooks/useWebSocket";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -138,9 +138,14 @@ export default function ServerDetailClient({ id, initialServer }: { id: string, 
           >
             {server.name}
           </Title>
+          <Group gap="xs">
+            <Button component={Link} href={`/servers/${id}/files`} leftSection={<IconFolder size={18} />} color="violet" radius="md" size="sm" variant="outline" style={{ textTransform: "lowercase" }}>
+              files
+            </Button>
           <Button component={Link} href={`/servers/${id}/settings`} leftSection={<IconSettings size={18} />} color="gray" radius="md" size="sm" variant="outline" style={{ textTransform: "lowercase" }}>
             settings
           </Button>
+          </Group>
         </Group>
         <Paper withBorder p="lg" radius="lg" style={{ background: "rgba(35, 36, 58, 0.8)", backdropFilter: "blur(8px)", boxShadow: "0 4px 24px rgba(24, 25, 38, 0.4)", border: "1px solid rgba(179, 186, 255, 0.1)", minHeight: 120, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <Text size="md" style={{ color: "#ededed", opacity: 0.8, marginBottom: 4 }}>

@@ -24,6 +24,7 @@
     "@mantine/nprogress": "^8.1.2",
     "@mantine/spotlight": "^8.1.2",
     "@mantine/tiptap": "^8.1.2",
+    "@monaco-editor/react": "^4.7.0",
     "@prisma/client": "6.11.0",
     "@tabler/icons-react": "^3.34.0",
     "@tiptap/extension-link": "^2.24.0",

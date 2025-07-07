@@ -164,6 +164,7 @@ export default function DashboardPage() {
                   <Button size="xs" color="green" radius="md" style={{ textTransform: "lowercase", fontWeight: 600 }}>start</Button>
                   <Button size="xs" color="yellow" radius="md" style={{ textTransform: "lowercase", fontWeight: 600 }}>restart</Button>
                   <Button size="xs" color="red" radius="md" style={{ textTransform: "lowercase", fontWeight: 600 }}>stop</Button>
+                  <Button size="xs" color="violet" radius="md" style={{ textTransform: "lowercase", fontWeight: 600 }} component={Link} href={`/servers/${server.id}/files`}>files</Button>
                 </Group>
               </Paper>
             ))}
