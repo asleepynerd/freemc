@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "limit" INTEGER NOT NULL DEFAULT 2;

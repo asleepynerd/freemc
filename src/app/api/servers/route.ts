@@ -157,9 +157,18 @@ export async function POST(req: Request) {
     const userEmail = session.user.email;
     const userName = session.user.name || userEmail.split('@')[0];
 
+    const user = await prisma.user.findUnique({ 
+        where: { id: userId }, 
+        select: { limit: true } 
+    });
+    
+    if (!user) {
+        return NextResponse.json({ error: 'user not found' }, { status: 404 });
+    }
+
     const serverCount = await prisma.server.count({ where: { userId } });
-    if (serverCount >= 2) {
-        return NextResponse.json({ error: 'you have reached the maximum number of servers (2).' }, { status: 403 });
+    if (serverCount >= user.limit) {
+        return NextResponse.json({ error: `you have reached the maximum number of servers (${user.limit}).` }, { status: 403 });
     }
 
     try {

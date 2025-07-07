@@ -5,6 +5,7 @@ import Link from "next/link";
 import { IconHome, IconLayoutDashboard, IconBrandGithub } from "@tabler/icons-react";
 import { usePathname } from "next/navigation";
 import { useSession, signIn, signOut } from "next-auth/react";
+import { useState, useEffect } from "react";
 
 const navLinks = [
   { href: "/", icon: IconHome, label: "home" },
@@ -16,6 +17,18 @@ export default function Navigation() {
   const pathname = usePathname();
   const [opened, { open, close }] = useDisclosure(false);
   const { data: session, status } = useSession();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetch('/api/user/admin-status')
+        .then(res => res.json())
+        .then(data => setIsAdmin(data.isAdmin))
+        .catch(() => setIsAdmin(false));
+    } else {
+      setIsAdmin(false);
+    }
+  }, [session?.user?.id]);
 
   return (
     <>
@@ -79,6 +92,11 @@ export default function Navigation() {
                   </Group>
                 </Menu.Target>
                 <Menu.Dropdown>
+                  {isAdmin && (
+                    <Menu.Item component={Link} href="/admin">
+                      admin panel
+                    </Menu.Item>
+                  )}
                   <Menu.Item onClick={() => signOut({ callbackUrl: "/" })}>
                     sign out
                   </Menu.Item>

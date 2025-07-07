@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { client } from '@/lib/pterodactyl';
+import { checkServerAccess, requireAuth } from '@/lib/admin';
 import fetch from 'node-fetch';
 
 export async function GET(req: Request, context: any) {
@@ -17,14 +18,18 @@ export async function GET(req: Request, context: any) {
   
   const filePath = file.join('/');
   
-  const session = await auth();
-  if (!session || !session.user || !session.user.id) {
+  const userId = await requireAuth();
+  if (!userId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
+  if (!(await checkServerAccess(id, userId))) {
+    return NextResponse.json({ error: 'server not found or access denied' }, { status: 404 });
+  }
+
   const server = await prisma.server.findUnique({ where: { id } });
-  if (!server || server.userId !== session.user.id) {
-    return NextResponse.json({ error: 'server not found or not owned by user' }, { status: 404 });
+  if (!server) {
+    return NextResponse.json({ error: 'server not found' }, { status: 404 });
   }
 
   const { searchParams } = new URL(req.url);
@@ -86,14 +91,18 @@ export async function POST(req: Request, context: any) {
   
   const filePath = file.join('/');
   
-  const session = await auth();
-  if (!session || !session.user || !session.user.id) {
+  const userId = await requireAuth();
+  if (!userId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
+  if (!(await checkServerAccess(id, userId))) {
+    return NextResponse.json({ error: 'server not found or access denied' }, { status: 404 });
+  }
+
   const server = await prisma.server.findUnique({ where: { id } });
-  if (!server || server.userId !== session.user.id) {
-    return NextResponse.json({ error: 'server not found or not owned by user' }, { status: 404 });
+  if (!server) {
+    return NextResponse.json({ error: 'server not found' }, { status: 404 });
   }
 
   const body = await req.json();

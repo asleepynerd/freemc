@@ -20,7 +20,12 @@ export default async function ServerDetailPage({ params }: { params: Promise<{ i
     return notFound();
   }
   
-  if (server.userId !== session.user.id) {
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { admin: true }
+  });
+  
+  if (server.userId !== session.user.id && (!user || !user.admin)) {
     return notFound();
   }
   

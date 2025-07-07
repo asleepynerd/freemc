@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { client } from '@/lib/pterodactyl';
 import { auth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { checkServerAccess, requireAuth } from '@/lib/admin';
 
 export async function POST(req: Request, context: any) {
     const { id } = await context.params;
@@ -10,8 +11,8 @@ export async function POST(req: Request, context: any) {
         return NextResponse.json({ error: 'invalid server id' }, { status: 400 });
     }
     
-    const session = await auth();
-    if (!session || !session.user || !session.user.id) {
+    const userId = await requireAuth();
+    if (!userId) {
         return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 
@@ -21,9 +22,13 @@ export async function POST(req: Request, context: any) {
         return NextResponse.json({ error: 'invalid action' }, { status: 400 });
     }
 
+    if (!(await checkServerAccess(id, userId))) {
+        return NextResponse.json({ error: 'server not found or access denied' }, { status: 404 });
+    }
+
     const dbServer = await prisma.server.findUnique({ where: { id } });
-    if (!dbServer || dbServer.userId !== session.user.id) {
-        return NextResponse.json({ error: 'server not found or not owned by user' }, { status: 404 });
+    if (!dbServer) {
+        return NextResponse.json({ error: 'server not found' }, { status: 404 });
     }
 
     try {

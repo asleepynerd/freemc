@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { app, ipMappings, client } from '@/lib/pterodactyl';
+import { checkServerAccess, requireAuth } from '@/lib/admin';
 import { Resolver } from 'dns/promises';
 import net from 'net';
 
@@ -12,14 +13,18 @@ export async function DELETE(req: Request, context: any) {
     return NextResponse.json({ error: 'invalid server id' }, { status: 400 });
   }
   
-  const session = await auth();
-  if (!session || !session.user || !session.user.id) {
+  const userId = await requireAuth();
+  if (!userId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
+  if (!(await checkServerAccess(id, userId))) {
+    return NextResponse.json({ error: 'server not found or access denied' }, { status: 404 });
+  }
+
   const server = await prisma.server.findUnique({ where: { id } });
-  if (!server || server.userId !== session.user.id) {
-    return NextResponse.json({ error: 'server not found or not owned by user' }, { status: 404 });
+  if (!server) {
+    return NextResponse.json({ error: 'server not found' }, { status: 404 });
   }
 
   try {
@@ -45,14 +50,18 @@ export async function PATCH(req: Request, context: any) {
     return NextResponse.json({ error: 'invalid server id' }, { status: 400 });
   }
   
-  const session = await auth();
-  if (!session || !session.user || !session.user.id) {
+  const userId = await requireAuth();
+  if (!userId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
+  if (!(await checkServerAccess(id, userId))) {
+    return NextResponse.json({ error: 'server not found or access denied' }, { status: 404 });
+  }
+
   const server = await prisma.server.findUnique({ where: { id } });
-  if (!server || server.userId !== session.user.id) {
-    return NextResponse.json({ error: 'server not found or not owned by user' }, { status: 404 });
+  if (!server) {
+    return NextResponse.json({ error: 'server not found' }, { status: 404 });
   }
 
   const body = await req.json();
@@ -121,18 +130,18 @@ export async function GET(req: Request, context: any) {
     return NextResponse.json({ error: 'invalid server id' }, { status: 400 });
   }
   
-  const session = await auth();
-  if (!session || !session.user || !session.user.id) {
+  const userId = await requireAuth();
+  if (!userId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  const server = await prisma.server.findUnique({ where: { id } });
+  if (!(await checkServerAccess(id, userId))) {
+    return NextResponse.json({ error: 'server not found or access denied' }, { status: 404 });
+  }
 
+  const server = await prisma.server.findUnique({ where: { id } });
   if (!server) {
     return NextResponse.json({ error: 'server not found' }, { status: 404 });
-  }
-  if (server?.userId !== session.user.id) {
-    return NextResponse.json({ error: 'server not found or not owned by user' }, { status: 404 });
   }
 
   try {

@@ -109,7 +109,16 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
 
     const session = await prisma.session.findUnique({
       where: { sessionToken },
-      include: { user: true }
+      include: { 
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            admin: true
+          }
+        }
+      }
     });
     
     if (!session || !session.user) {
@@ -131,9 +140,10 @@ async function handleConsoleConnection(ws: WebSocket, serverId: string, request:
       return;
     }
 
-    if (dbServer.userId !== session.user.id) {
-      console.log("server not owned by user:", serverId, session.user.id);
-      safeClose(1003, 'server not owned by user');
+    const hasAccess = dbServer.userId === session.user.id || session.user.admin;
+    if (!hasAccess) {
+      console.log("server access denied:", serverId, session.user.id);
+      safeClose(1003, 'server access denied');
       return;
     }
 
