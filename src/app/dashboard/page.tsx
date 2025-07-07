@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [type, setType] = useState<string | null>(null);
+  const [version, setVersion] = useState<string>("latest");
   const [error, setError] = useState<string | null>(null);
   const [serversVisible, setServersVisible] = useState(false);
   const { data: session, status } = useSession();
@@ -54,11 +55,12 @@ export default function DashboardPage() {
     const res = await fetch("/api/servers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: Number(type) }),
+      body: JSON.stringify({ type: Number(type), version }),
     });
     if (res.ok) {
       setCreateOpen(false);
       setType(null);
+      setVersion("latest");
       setLoading(true);
       fetch("/api/servers")
         .then(res => res.json())
@@ -170,7 +172,7 @@ export default function DashboardPage() {
             ))}
           </Stack>
         )}
-        <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="create a new server" centered>
+        <Modal opened={createOpen} onClose={() => { setCreateOpen(false); setType(null); setVersion("latest"); }} title="create a new server" centered>
           <Stack gap="md">
             <Select
               label="server type"
@@ -180,6 +182,31 @@ export default function DashboardPage() {
               onChange={setType}
               radius="md"
             />
+            {type === "2" && (
+              <Select
+                label="minecraft version"
+                placeholder="select version"
+                data={[
+                  { value: "latest", label: "latest" },
+                  { value: "1.21.4", label: "1.21.4" },
+                  { value: "1.21.3", label: "1.21.3" },
+                  { value: "1.21.1", label: "1.21.1" },
+                  { value: "1.21", label: "1.21" },
+                  { value: "1.20.6", label: "1.20.6" },
+                  { value: "1.20.4", label: "1.20.4" },
+                  { value: "1.20.2", label: "1.20.2" },
+                  { value: "1.20.1", label: "1.20.1" },
+                  { value: "1.19.4", label: "1.19.4" },
+                  { value: "1.19.2", label: "1.19.2" },
+                  { value: "1.18.2", label: "1.18.2" },
+                  { value: "1.17.1", label: "1.17.1" },
+                  { value: "1.16.5", label: "1.16.5" },
+                ]}
+                value={version}
+                onChange={(value) => setVersion(value || "latest")}
+                radius="md"
+              />
+            )}
             <Button color="violet" radius="md" loading={creating} onClick={handleCreate} disabled={!type} style={{ textTransform: "lowercase" }}>
               create
             </Button>

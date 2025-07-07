@@ -147,7 +147,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 
-    const { type } = await req.json();
+    const { type, version } = await req.json();
 
     if (!type || !serverTypeDetails[type]) {
         return NextResponse.json({ error: 'invalid server type' }, { status: 400 });
@@ -169,10 +169,10 @@ export async function POST(req: Request) {
         
         const environment: { [key: string]: string } = {
             SERVER_JARFILE: "server.jar",
-            VANILLA_VERSION: "latest",
+            VANILLA_VERSION: version || "latest",
             FORGE_VERSION: "latest",
             PAPER_VERSION: "latest",
-            MINECRAFT_VERSION: "1.20.4",
+            MINECRAFT_VERSION: version || "latest",
             SERVER_NAME: `${userName}'s ${details.name} Server`,
             SERVER_PORT: "25565",
             EULA: "true",
