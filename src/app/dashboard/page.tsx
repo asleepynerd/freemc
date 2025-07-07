@@ -13,6 +13,7 @@ const serverTypes = [
 ];
 
 export default function DashboardPage() {
+  const { data: session, status } = useSession();
   const [servers, setServers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -21,15 +22,6 @@ export default function DashboardPage() {
   const [version, setVersion] = useState<string>("latest");
   const [error, setError] = useState<string | null>(null);
   const [serversVisible, setServersVisible] = useState(false);
-  const { data: session, status } = useSession();
-
-  if (status === "loading") {
-    return <Group justify="center" align="center" style={{ minHeight: 300, width: "100%" }}><Loader color="violet" /></Group>;
-  }
-
-  if (status === "authenticated" && !session) {
-    redirect("/");
-  }
 
   useEffect(() => {
     setLoading(true);
@@ -72,6 +64,14 @@ export default function DashboardPage() {
     }
     setCreating(false);
   };
+
+  if (status === "loading") {
+    return <Group justify="center" align="center" style={{ minHeight: 300, width: "100%" }}><Loader color="violet" /></Group>;
+  }
+
+  if (status === "authenticated" && !session) {
+    redirect("/");
+  }
 
   return (
     <Container size="lg" py="xl" style={{ minHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
