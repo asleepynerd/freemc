@@ -23,7 +23,7 @@ export default function Navigation() {
         background: "rgba(24, 25, 38, 0.85)",
         borderBottom: "1px solid #23243a",
         backdropFilter: "blur(12px)",
-        zIndex: 100,
+        zIndex: 9999,
         position: "relative"
       }}>
         <Container size="lg" px="md" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
