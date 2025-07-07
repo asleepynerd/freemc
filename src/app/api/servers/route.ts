@@ -185,6 +185,7 @@ export async function POST(req: Request) {
         environment.SERVER_JARFILE = "server.jar";
         environment.VANILLA_VERSION = version || "latest";
       } else if (type === 5) {
+        environment.SERVER_JARFILE = "server.jar";
         environment.PAPER_VERSION = version || "latest";
         environment.BUILD_NUMBER = "latest";
       } else if (type === 23) {

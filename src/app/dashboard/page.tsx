@@ -28,8 +28,24 @@ export default function DashboardPage() {
   useEffect(() => {
     setLoading(true);
     fetch("/api/servers")
-      .then(res => res.json())
-      .then(data => setServers(data))
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (Array.isArray(data)) {
+          setServers(data);
+        } else {
+          console.error("invalid server data received:", data);
+          setServers([]);
+        }
+      })
+      .catch(error => {
+        console.error("failed to fetch servers:", error);
+        setServers([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -57,8 +73,24 @@ export default function DashboardPage() {
       setVersion("latest");
       setLoading(true);
       fetch("/api/servers")
-        .then(res => res.json())
-        .then(data => setServers(data))
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          return res.json();
+        })
+        .then(data => {
+          if (Array.isArray(data)) {
+            setServers(data);
+          } else {
+            console.error("invalid server data received:", data);
+            setServers([]);
+          }
+        })
+        .catch(error => {
+          console.error("failed to fetch servers:", error);
+          setServers([]);
+        })
         .finally(() => setLoading(false));
     } else {
       const data = await res.json();
