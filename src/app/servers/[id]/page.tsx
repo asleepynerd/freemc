@@ -31,7 +31,7 @@ export default async function ServerDetailPage({ params }: { params: Promise<{ i
     type: server.type,
     ram: server.ram,
     cores: server.cores,
-    address: `${ip}:${port}`
+    address: server.address || `${ip}:${port}`
   };
 
 

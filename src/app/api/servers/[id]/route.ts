@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { app, ipMappings, client } from '@/lib/pterodactyl';
+import { Resolver } from 'dns/promises';
+import net from 'net';
 
 export async function DELETE(req: Request, context: any) {
   const { id } = context.params;
@@ -38,7 +40,7 @@ export async function DELETE(req: Request, context: any) {
 } 
 
 export async function PATCH(req: Request, context: any) {
-  const { id } = context.params;
+  const { id } = await context.params;
   if (!id || typeof id !== 'string' || id.length < 1) {
     return NextResponse.json({ error: 'invalid server id' }, { status: 400 });
   }
@@ -53,19 +55,63 @@ export async function PATCH(req: Request, context: any) {
     return NextResponse.json({ error: 'server not found or not owned by user' }, { status: 404 });
   }
 
-  const { name } = await req.json();
-  if (!name || typeof name !== 'string' || name.length < 2 || name.length > 64) {
-    return NextResponse.json({ error: 'invalid name' }, { status: 400 });
+  const body = await req.json();
+  const updates: any = {};
+
+  if (body.name !== undefined) {
+    if (typeof body.name !== 'string' || body.name.length < 2 || body.name.length > 64) {
+      return NextResponse.json({ error: 'invalid name' }, { status: 400 });
+    }
+    try {
+      await app.servers.updateDetails(server.pterodactylServerId, { name: body.name });
+      updates.name = body.name;
+    } catch (e) {
+      console.error('failed to update server name:', e);
+      return NextResponse.json({ error: 'failed to update name in panel' }, { status: 500 });
+    }
   }
 
-  try {
-    await app.servers.updateDetails(server.pterodactylServerId, { name });
-  } catch (e) {
-    console.error('failed to update server name:', e);
-    return NextResponse.json({ error: 'failed to update name in panel' }, { status: 500 });
+  if (body.address !== undefined) {
+    console.log(body.address);
+    if (typeof body.address !== 'string' || body.address.length < 1 || body.address.length > 128) {
+      return NextResponse.json({ error: 'invalid address' }, { status: 400 });
+    }
+    try {
+      const resolver = new Resolver();
+      resolver.setServers(['1.1.1.1']);
+      const srvDomain = `_minecraft._tcp.${body.address}`;
+      console.log(srvDomain);
+      const srvRecords = await resolver.resolveSrv(srvDomain);
+      console.log(srvRecords);
+      console.log(body.address);
+      if (!srvRecords.length) {
+        return NextResponse.json({ error: `No SRV record found for ${srvDomain}. Please create an SRV record for your domain.` }, { status: 400 });
+      }
+      const srv = srvRecords[0];
+      const allocation = await client.network.listAllocations(server.pterodactylServerId.toString());
+      const expectedIp = ipMappings[allocation.data[0].attributes.ip as keyof typeof ipMappings] || allocation.data[0].attributes.ip;
+      const expectedPort = allocation.data[0].attributes.port;
+      if (srv.port !== expectedPort) {
+        return NextResponse.json({ error: `SRV record port (${srv.port}) does not match your server's port (${expectedPort}).` }, { status: 400 });
+      }
+      if (srv.weight !== 10 || srv.priority !== 10) {
+        return NextResponse.json({ error: `SRV record weight/priority must both be 10. Found weight=${srv.weight}, priority=${srv.priority}.` }, { status: 400 });
+      }
+      if (srv.name !== expectedIp) {
+        return NextResponse.json({ error: `SRV record name (${srv.name}) does not match your server's IP (${expectedIp}).` }, { status: 400 });
+      }
+      updates.address = body.address;
+    } catch (e: any) {
+      return NextResponse.json({ error: `failed to verify SRV record: ${e.message}.\n\nTo use a custom domain, create an SRV record like this:\n\nService: _minecraft\nProtocol: _tcp\nName: <your subdomain>\nPriority: 10\nWeight: 10\nPort: <your server port>\nTarget: <your server IP or hostname>\n\nExample: _minecraft._tcp.mc.example.com SRV 10 10 25565 1.2.3.4` }, { status: 400 });
+    }
   }
 
-  return NextResponse.json({ success: true });
+  if (Object.keys(updates).length > 0) {
+    await prisma.server.update({ where: { id }, data: updates });
+    return NextResponse.json({ success: true });
+  } else {
+    return NextResponse.json({ error: 'no valid fields to update' }, { status: 400 });
+  }
 }
 
 export async function GET(req: Request, context: any) {
@@ -106,7 +152,7 @@ export async function GET(req: Request, context: any) {
       type: server.type,
       ram: server.ram,
       cores: server.cores,
-      address: `${ip}:${port}`
+      address: server.address || `${ip}:${port}`
     });
   } catch (error) {
     console.error('failed to get server details:', error);

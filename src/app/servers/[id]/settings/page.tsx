@@ -26,14 +26,23 @@ export default async function ServerSettingsPage({ params }: { params: Promise<{
   }
 
   let serverName = "";
+  let address = "";
   try {
     const pteroServer = await app.servers.list();
     const ptero = pteroServer.data.find((s: any) => s.attributes.identifier === server.pterodactylServerId);
     serverName = ptero?.attributes.name || "Unknown Server";
+    const allocations = await client.network.listAllocations(server.pterodactylServerId);
+    const ip = ipMappings[allocations.data[0].attributes.ip as keyof typeof ipMappings];
+    const port = allocations.data[0].attributes.port;
+    address = `${ip}:${port}`;
   } catch (error) {
     console.error("Failed to get server name from Pterodactyl:", error);
     serverName = "Unknown Server";
   }
 
-  return <ServerSettingsClient id={id} serverName={serverName} />;
+  if (server.address) {
+    address = server.address;
+  }
+
+  return <ServerSettingsClient id={id} serverName={serverName} address={address} />;
 } 

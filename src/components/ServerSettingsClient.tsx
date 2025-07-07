@@ -8,15 +8,19 @@ import { useRouter } from "next/navigation";
 interface ServerSettingsClientProps {
   id: string;
   serverName: string;
+  address: string;
 }
 
-export default function ServerSettingsClient({ id, serverName }: ServerSettingsClientProps) {
+export default function ServerSettingsClient({ id, serverName, address }: ServerSettingsClientProps) {
   const [name, setName] = useState(serverName);
   const [renamed, setRenamed] = useState(false);
   const [deleted, setDeleted] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showDeletedPopup, setShowDeletedPopup] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customAddress, setCustomAddress] = useState(address);
+  const [addressSaved, setAddressSaved] = useState(false);
+  const [showSRVHelp, setShowSRVHelp] = useState(false);
   const router = useRouter();
 
   const handleRename = async () => {
@@ -33,6 +37,31 @@ export default function ServerSettingsClient({ id, serverName }: ServerSettingsC
       setTimeout(() => setRenamed(false), 2000);
     } catch {
       setError("failed to rename server");
+    }
+  };
+
+  const handleAddressSave = async () => {
+    setAddressSaved(false);
+    setError(null);
+    setShowSRVHelp(false);
+    try {
+      const res = await fetch(`/api/servers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: customAddress }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "failed to save address");
+        if (data.error && data.error.includes('SRV record')) {
+          setShowSRVHelp(true);
+        }
+        return;
+      }
+      setAddressSaved(true);
+      setTimeout(() => setAddressSaved(false), 2000);
+    } catch (e: any) {
+      setError("failed to save address");
     }
   };
 
@@ -54,6 +83,10 @@ export default function ServerSettingsClient({ id, serverName }: ServerSettingsC
     }
   };
 
+  const addressSplit = address.split(":");
+  const addressIp = addressSplit[0];
+  const addressPort = addressSplit[1];
+
   return (
     <Container size="sm" py="xl" style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
       <Stack gap="lg" style={{ width: "100%", maxWidth: 400, margin: "0 auto" }}>
@@ -71,11 +104,50 @@ export default function ServerSettingsClient({ id, serverName }: ServerSettingsC
           </Group>
           {renamed && <Text size="xs" style={{ color: "#b3ffd1", marginTop: 8 }}>renamed!</Text>}
         </Paper>
+        {error && (
+          <Paper withBorder p="md" radius="md" style={{ background: '#2a1a1a', color: '#ffd1b3', marginBottom: 8, zIndex: 1002, position: 'relative', border: '1px solid #ffd1b3' }}>
+            <Text size="sm" style={{ color: '#ffd1b3', fontWeight: 600, marginBottom: 2 }}>
+              {error.includes('SRV record') ? 'SRV Record Error:' : 'Error:'}
+            </Text>
+            <Text size="xs" style={{ color: '#ffd1b3', whiteSpace: 'pre-line' }}>
+              {error}
+            </Text>
+          </Paper>
+        )}
+        {showSRVHelp && (
+          <Paper withBorder p="md" radius="md" style={{ background: "rgba(35, 36, 58, 0.7)", marginBottom: 8, zIndex: 1001, position: 'relative' }}>
+            <Text size="sm" style={{ color: '#b3ffd1', fontWeight: 600, marginBottom: 4 }}>
+              To use a custom domain, create an SRV record for your domain like this:
+            </Text>
+            <Text size="xs" style={{ color: '#ededed', fontFamily: 'monospace', whiteSpace: 'pre-line', marginBottom: 4 }}>
+              {`Service:   _minecraft
+Protocol:  _tcp
+Name:      <your subdomain>
+Priority:  10
+Weight:    10
+Port:      <your server port>
+Target:    <your server IP or hostname>`}
+            </Text>
+            <Text size="xs" style={{ color: '#b3baff', fontFamily: 'monospace', whiteSpace: 'pre-line' }}>
+              {`Example: _minecraft._tcp.mc.example.com SRV 10 10 25565 1.2.3.4`}
+            </Text>
+            <Text size="xs" style={{ color: '#b3baff', marginTop: 6, opacity: 0.7 }}>
+              On some providers, you might have to enter <b>_minecraft._tcp.&lt;name&gt;</b> all in the Name field.
+            </Text>
+          </Paper>
+        )}
+        <Paper withBorder p="lg" radius="lg" style={{ background: "rgba(35, 36, 58, 0.8)", backdropFilter: "blur(8px)", boxShadow: "0 4px 24px rgba(24, 25, 38, 0.4)", border: "1px solid rgba(179, 186, 255, 0.1)", minHeight: 120, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <Text size="sm" style={{ color: "#ededed", opacity: 0.8, marginBottom: 8 }}>custom domain/address</Text>
+          <Group gap="xs">
+            <TextInput value={customAddress} onChange={e => setCustomAddress(e.currentTarget.value)} radius="md" size="md" style={{ flex: 1 }} placeholder="e.g. mc.example.com or 1.2.3.4:25565" />
+            <Button color="violet" radius="md" size="md" onClick={handleAddressSave} style={{ textTransform: "lowercase" }}>save</Button>
+          </Group>
+          {addressSaved && <Text size="xs" style={{ color: "#b3ffd1", marginTop: 8 }}>saved!</Text>}
+        </Paper>
         <Paper withBorder p="lg" radius="lg" style={{ background: "rgba(35, 36, 58, 0.8)", backdropFilter: "blur(8px)", boxShadow: "0 4px 24px rgba(24, 25, 38, 0.4)", border: "1px solid rgba(255, 179, 179, 0.1)", minHeight: 100, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <Text size="sm" style={{ color: "#ffd1b3", opacity: 0.8, marginBottom: 8 }}>danger zone</Text>
           <Button leftSection={<IconTrash size={18} />} color="red" radius="md" size="md" onClick={() => setShowConfirm(true)} style={{ textTransform: "lowercase" }}>delete server</Button>
         </Paper>
-        {error && <Text size="xs" style={{ color: "#ffd1b3", marginTop: 8 }}>{error}</Text>}
       </Stack>
       <Modal opened={showConfirm} onClose={() => setShowConfirm(false)} title="are you sure?" centered>
         <Stack gap="md">
