@@ -22,7 +22,7 @@ model User {
   createdAt DateTime @default(now())
   admin     Boolean  @default(false)
   verified  Boolean  @default(false)
-  limit     Int      @default(2)
+  limit     Int      @default(1)
 }
 
 model Server {

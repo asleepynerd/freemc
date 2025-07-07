@@ -86,7 +86,7 @@ export default function AdminPanelClient({ users, servers }: AdminPanelClientPro
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
-    limit: 2,
+    limit: 1,
     admin: false,
     verified: false
   });
