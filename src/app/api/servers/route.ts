@@ -186,6 +186,7 @@ export async function POST(req: Request) {
         environment.VANILLA_VERSION = version || "latest";
       } else if (type === 5) {
         environment.PAPER_VERSION = version || "latest";
+        environment.BUILD_NUMBER = "latest";
       } else if (type === 23) {
         environment.FACTORIO_VERSION = version || "latest";
       } else if (type === 24) {
