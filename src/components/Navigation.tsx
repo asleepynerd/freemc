@@ -92,6 +92,9 @@ export default function Navigation() {
                   </Group>
                 </Menu.Target>
                 <Menu.Dropdown>
+                  <Menu.Item component={Link} href="/me">
+                    my profile
+                  </Menu.Item>
                   {isAdmin && (
                     <Menu.Item component={Link} href="/admin">
                       admin panel
