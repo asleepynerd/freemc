@@ -9,7 +9,7 @@ import { redirect } from "next/navigation";
 const serverTypes = [
   { value: "2", label: "vanilla" },
   //{ value: "3", label: "forge" },
-  //{ value: "5", label: "paper" },
+  { value: "5", label: "paper" },
 ];
 
 export default function DashboardPage() {
@@ -182,7 +182,7 @@ export default function DashboardPage() {
               onChange={setType}
               radius="md"
             />
-            {type === "2" && (
+            {(type === "2" || type === "5") && (
               <Select
                 label="minecraft version"
                 placeholder="select version"

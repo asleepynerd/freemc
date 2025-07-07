@@ -4,9 +4,9 @@ import prisma from '@/lib/prisma';
 import { app, client, ipMappings } from '@/lib/pterodactyl';
 
 const serverTypeDetails: { [key: number]: { name: string; ram: number; cores: number; disk: number; egg: number; image: string } } = {
-    2: { name: 'Vanilla', ram: 4096, cores: 2, disk: 1024, egg: 2, image: 'ghcr.io/pterodactyl/yolks:java_21' },
+    2: { name: 'vanilla', ram: 4096, cores: 2, disk: 1024, egg: 2, image: 'ghcr.io/pterodactyl/yolks:java_21' },
     //3: { name: 'Forge', ram: 6144, cores: 4, disk: 4096, egg: 3, image: 'ghcr.io/pterodactyl/yolks:java_21' },
-    //5: { name: 'Paper', ram: 4096, cores: 4, disk: 2048, egg: 5, image: 'ghcr.io/pterodactyl/yolks:java_21' },
+    5: { name: 'paper', ram: 4096, cores: 4, disk: 2048, egg: 5, image: 'ghcr.io/pterodactyl/yolks:java_21' },
 };
 
 const AVAILABLE_NODES = [1, 2, 3];
@@ -171,8 +171,9 @@ export async function POST(req: Request) {
             SERVER_JARFILE: "server.jar",
             VANILLA_VERSION: version || "latest",
             FORGE_VERSION: "latest",
-            PAPER_VERSION: "latest",
+            PAPER_VERSION: version || "latest",
             MINECRAFT_VERSION: version || "latest",
+            BUILD_NUMBER: "latest",
             SERVER_NAME: `${userName}'s ${details.name} Server`,
             SERVER_PORT: "25565",
             EULA: "true",
